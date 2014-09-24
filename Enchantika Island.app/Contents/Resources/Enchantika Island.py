@@ -41,7 +41,15 @@ def sortobjs(objs):
             if obj.pos[1] == i:
                 final.append(obj)
     return final
+def getangle(x1,y1,x2,y2):
+    a = x2-x1
+    b = y2-y1
 
+    h = math.sqrt(a**2+b**2)
+
+    theta = math.asin(b/float(h))
+
+    return math.degrees(theta)
 
 class Button:
     def __init__(self,surf,pos,center=False):
@@ -86,11 +94,17 @@ class Creature:
         self.pos = pos
         self.direction = direction
         self.alive = True
-    def render(self):
+        self.angry = False
+        self.life = 100
+    def render(self,offset=[0,0]):
+        image = self.img
+
+        if self.direction == 'right':
+            image = pygame.transform.flip(image,True,False)
         if not self.alive:
-            blit(pygame.transform.rotate(self.img,90),self.pos)
+            blit(pygame.transform.rotate(image,90),[self.pos[0]-offset[0],self.pos[1]-offset[1]])
         else:
-            blit(self.img,self.pos)
+            blit(image,[self.pos[0]-offset[0],self.pos[1]-offset[1]])
 
 class Sprite:
     def __init__(self,name,img,pos):
@@ -268,7 +282,7 @@ def createsavefile():
                         if not name+'.txt' in saves:
                             if not name == '':
                                 fl = open('saves/'+name+'.txt','w+')
-                                fl.write(codes.encrypt('level=1\ngold=0\nmana=100\nhealth=100\nscore=0'))
+                                fl.write(codes.encrypt('level=1\nmana=100\nhealth=100\nscore=0'))
                                 fl.close()
                                 savefileselect()
                         else:
@@ -306,27 +320,233 @@ def main():
     fl.close()
     
     levelnum = lines[0]
-    gold = lines[1]
-    mana = lines[2]
-    health = lines[3]
-    score = lines[4]
+    mana = lines[1]
+    health = lines[2]
+    score = lines[3]
 
+    cam = [0,0]
+    pos = [640,480]
+    direction = 'left'
+
+    monster = load('images/monster.png')
+
+    plants = []
+    monsters = []
+    potions = []
+
+    for i in range(0,50):
+        plants.append([random.randint(0,6000),random.randint(0,3000)])
+
+    for i in range(0,levelnum*10):
+        monsters.append(Creature('monster',monster,[random.randint(0,6000),random.randint(0,3000)],'left'))
+
+    for i in range(0,10):
+        potions.append([random.randint(0,6000),random.randint(0,3000),random.choice(['mana','health'])])
     tile = load('images/grass.jpg')
+    player = load('images/wizard.png')
+    plant = load('images/plant.png')
+
+    manabottle = load('images/mana.png')
+    healthbottle = load('images/health.png')
     
+
+    redcrystal = load('images/crystalred.png')
+    greencrystal = load('images/crystalgreen.png')
+    bluecrystal = load('images/crystalblue.png')
+
+    portal1 = load('images/portal1.png')
+    partal2 = load('images/portal2.png')
+
+    fireball = load('images/fireball.png')
+
+    red = [random.randint(0,6000),random.randint(0,3000)]
+    green = [random.randint(0,6000),random.randint(0,3000)]
+    blue = [random.randint(0,6000),random.randint(0,3000)]
+
+    fireballs = []
+
+    activated = False
+
+    pygame.key.set_repeat(1,1)
     
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                fl = open('saves/'+selectedgamefile,'w+')
+
+                fl.write(codes.encrypt('level='+str(levelnum)+'\nmana='+str(mana)+'\nhealth='+str(health)+'\nscore='+str(score)))
+
+                fl.close()
                 pygame.quit()
                 raise SystemExit
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    direction = 'left'
+                    if pos[0]-16 >= 0:
+                        pos[0] -= 16
+                elif event.key == pygame.K_RIGHT:
+                    direction = 'right'
+                    if pos[0]+16 <= 6000:
+                        pos[0] += 16
+                elif event.key == pygame.K_UP:
+                    if pos[1]-16 >= 0:
+                        pos[1] -= 16
+                elif event.key == pygame.K_DOWN:
+                    if pos[1]+16 <= 3000:
+                        pos[1] += 16
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mpos = pygame.mouse.get_pos()
+                for m in monsters:
+                    if distance(m.pos[0],m.pos[1],pos[0],pos[1])<=128:
+                        if pygame.mouse.get_pressed()[0]:
+                            m.life-=10
 
-        for x in range(0,10):
-            for y in range(0,10):
-                blit(tile,[x*600,y*300])
+                            if m.life <= 0:
+                                m.alive = False
+                if pygame.mouse.get_pressed()[2]:
+                    if mana-10 >= 0:
+                        fireballs.append([pos[0],pos[1],mpos[0]+cam[0],mpos[1]+cam[1]])
+                        mana-=10
+                
+                                    
+
+        for x in range(0,11):
+            for y in range(0,11):
+                blit(tile,[x*600-cam[0],y*300-cam[1]])
+
+        if activated:
+            blit(portal2,[3000-cam[0],1500-cam[1]])
+        else:
+            blit(portal1,[3000-cam[0],1500-cam[1]])
+        blit(redcrystal,[red[0]-cam[0],red[1]-cam[1]])
+        blit(greencrystal,[green[0]-cam[0],green[1]-cam[1]])
+        blit(bluecrystal,[blue[0]-cam[0],blue[1]-cam[1]])
+
+        for p in potions:
+            if p[2] == 'mana':
+                blit(manabottle,[p[0]-cam[0],p[1]-cam[1]])
+            else:
+                blit(healthbottle,[p[0]-cam[0],p[1]-cam[1]])
+
+            if distance(p[0],p[1],pos[0],pos[1]) <= 128:
+                if p[2] == 'health':
+                    health+=10
+
+                    if health > 100:
+                        health = 100
+                else:
+                    mana+=10
+
+                    if mana > 100:
+                        mana = 100
+
+                potions.remove(p)
+
+        for p in plants:
+            blit(plant,[p[0]-cam[0],p[1]-cam[1]])
+        for m in monsters:
+            if not m.alive:
+                m.render(cam)
+                continue
+            if m.pos[0]<pos[0]:
+                m.direction = 'right'
+            else:
+                m.direction = 'left'
+
+            if distance(m.pos[0],m.pos[1],pos[0],pos[1]) <= 512 or m.angry:
+                m.angry = True
+                theta = getangle(m.pos[0],m.pos[1],pos[0],pos[1])
+                if distance(m.pos[0],m.pos[1],pos[0],pos[1]) >= 16:
+                    if m.pos[0] < pos[0]:
+                        m.pos = [math.cos(math.radians(theta))*18+m.pos[0],math.sin(math.radians(theta))*18+m.pos[1]]
+                    else:
+                        m.pos = [-math.cos(math.radians(theta))*18+m.pos[0],math.sin(math.radians(theta))*18+m.pos[1]]
+                else:
+                    health-=0.8
+
+                    if health <= 0:
+                        msg("You Died!")
+                        levelnum-=2
+
+                        if levelnum < 1:
+                            levelnum = 1
+            m.render(cam)
+
+        if direction == 'right':
+            blitcenter(pygame.transform.flip(player,True,False),[pos[0]-cam[0],pos[1]-cam[1]])
+        else:
+            blitcenter(player,[pos[0]-cam[0],pos[1]-cam[1]])
+
+        if pos[0]-cam[0] >= 1120 and cam[0] < 4720:
+            cam[0] += 16
+        if pos[1]-cam[1] >= 800 and cam[1] < 2040:
+            cam[1] += 16
+        if pos[0]-cam[0] <= 160 and cam[0] > 0:
+            cam[0] -= 16
+        if pos[1]-cam[1] <= 160 and cam[1] > 0:
+            cam[1] -= 16
+
+        for f in fireballs:
+            blitcenter(fireball,[int(f[0])-cam[0],int(f[1])-cam[1]])
+
+            theta = getangle(f[0],f[1],f[2],f[3])
+
+            if f[0] < f[2]:
+                f[0] = math.cos(math.radians(theta))*20+f[0]
+                f[1] = math.sin(math.radians(theta))*20+f[1]
+            else:
+                f[0] = -math.cos(math.radians(theta))*20+f[0]
+                f[1] = math.sin(math.radians(theta))*20+f[1]
+
+
+            for m in monsters:
+                if distance(f[0],f[1],m.pos[0],m.pos[1]) <= 128 and m.alive:
+                    m.life -= 50
+                    
+                    if m.life <= 0:
+                        m.alive = False
+                        score += 1
+
+                    fireballs.remove(f)
+            
+            x = abs(f[0]-f[2])
+            y = abs(f[1]-f[3])
+
+            if f[0] < f[2]:
+                f[2]+=x
+            if f[1] < f[3]:
+                f[3]+=y
+            
+            if f[0] > f[2]:
+                f[2]-=x
+            if f[1] > f[3]:
+                f[3]-=y
+
+            if f[0] < 0 or f[0] > 6000:
+                fireballs.remove(f)
+            if f[1] < 0 or f[1] > 3000:
+                fireballs.remove(f)
+
+        pygame.draw.rect(screen,[0,0,0],[64,64,256,32])
+        pygame.draw.rect(screen,[255,0,0],[64,64,int(health/100.0*256),32])
+
+        pygame.draw.rect(screen,[0,0,0],[512,64,256,32])
+        pygame.draw.rect(screen,[0,0,255],[512,64,int(mana/100.0*256),32])
+
+        blit(text(text='Score: '+str(score)),[960,64])
+
         flip()
 
-        
-        
+        if random.randint(0,50) == 1:
+            potions.append([random.randint(0,6000),random.randint(0,3000),random.choice(['mana','health'])])
+
+        if distance(pos[0],pos[1],red[0],red[1]) <= 128:
+            red = True
+        if distance(pos[0],pos[1],green[0],green[1]) <= 128:
+            green = True
+        if distance(pos[0],pos[1],blue[0],blue[1]) <= 128:
+            blue = True
+            
 titlescreen()
 
 
