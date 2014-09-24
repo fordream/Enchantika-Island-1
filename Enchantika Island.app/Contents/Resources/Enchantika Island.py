@@ -355,7 +355,7 @@ def main():
     bluecrystal = load('images/crystalblue.png')
 
     portal1 = load('images/portal1.png')
-    partal2 = load('images/portal2.png')
+    portal2 = load('images/portal2.png')
 
     fireball = load('images/fireball.png')
 
@@ -374,7 +374,7 @@ def main():
             if event.type == pygame.QUIT:
                 fl = open('saves/'+selectedgamefile,'w+')
 
-                fl.write(codes.encrypt('level='+str(levelnum)+'\nmana='+str(mana)+'\nhealth='+str(health)+'\nscore='+str(score)))
+                fl.write(codes.encrypt('level='+str(levelnum)+'\nmana='+str(mana)+'\nhealth='+str(int(health))+'\nscore='+str(score)))
 
                 fl.close()
                 pygame.quit()
@@ -418,9 +418,18 @@ def main():
             blit(portal2,[3000-cam[0],1500-cam[1]])
         else:
             blit(portal1,[3000-cam[0],1500-cam[1]])
-        blit(redcrystal,[red[0]-cam[0],red[1]-cam[1]])
-        blit(greencrystal,[green[0]-cam[0],green[1]-cam[1]])
-        blit(bluecrystal,[blue[0]-cam[0],blue[1]-cam[1]])
+        try:
+            blit(redcrystal,[red[0]-cam[0],red[1]-cam[1]])
+        except:
+            pass
+        try:
+            blit(greencrystal,[green[0]-cam[0],green[1]-cam[1]])
+        except:
+            pass
+        try:
+            blit(bluecrystal,[blue[0]-cam[0],blue[1]-cam[1]])
+        except:
+            pass
 
         for p in potions:
             if p[2] == 'mana':
@@ -470,6 +479,17 @@ def main():
 
                         if levelnum < 1:
                             levelnum = 1
+
+                        health = 100
+                        mana = 100
+                        fl = open('saves/'+selectedgamefile,'w+')
+
+                        fl.write(codes.encrypt('level='+str(levelnum)+'\nmana='+str(mana)+'\nhealth='+str(int(health))+'\nscore='+str(score)))
+
+                        fl.close()
+
+                        main()
+
             m.render(cam)
 
         if direction == 'right':
@@ -535,17 +555,37 @@ def main():
 
         blit(text(text='Score: '+str(score)),[960,64])
 
+        blit(text(text='Level '+str(levelnum),size=72),[960,800])
+
         flip()
 
         if random.randint(0,50) == 1:
             potions.append([random.randint(0,6000),random.randint(0,3000),random.choice(['mana','health'])])
 
-        if distance(pos[0],pos[1],red[0],red[1]) <= 128:
-            red = True
-        if distance(pos[0],pos[1],green[0],green[1]) <= 128:
-            green = True
-        if distance(pos[0],pos[1],blue[0],blue[1]) <= 128:
-            blue = True
+        if not red == True:
+            if distance(pos[0],pos[1],red[0],red[1]) <= 128:
+                red = True
+        if not green == True:
+            if distance(pos[0],pos[1],green[0],green[1]) <= 128:
+                green = True
+        if not blue == True:
+            if distance(pos[0],pos[1],blue[0],blue[1]) <= 128:
+                blue = True
+
+        if red == True and green == True and blue == True:
+            activated = True
+
+        if distance(pos[0],pos[1],3000,1500) <= 256 and activated:
+            levelnum+=1
+
+            msg('Level Complete')
+            fl = open('saves/'+selectedgamefile,'w+')
+
+            fl.write(codes.encrypt('level='+str(levelnum)+'\nmana='+str(mana)+'\nhealth='+str(int(health))+'\nscore='+str(score)))
+
+            fl.close()
+
+            main()
             
 titlescreen()
 
